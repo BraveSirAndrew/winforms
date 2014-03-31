@@ -99,7 +99,6 @@ namespace AdamsLair.WinForms.EditorTemplates
 
 			this.UpdateScroll();
 			this.EmitInvalidate();
-			this.EmitEdited(this.text);
 		}
 		public void InsertText(string insertText)
 		{
@@ -126,7 +125,6 @@ namespace AdamsLair.WinForms.EditorTemplates
 
 			this.UpdateScroll();
 			this.EmitInvalidate();
-			this.EmitEdited(this.text);
 		}
 		public void ShowCursor()
 		{
@@ -200,7 +198,14 @@ namespace AdamsLair.WinForms.EditorTemplates
 		}
 		public override void OnLostFocus(EventArgs e)
 		{
-			if (this.focused) this.EmitEditingFinished(this.text, FinishReason.LostFocus);			
+			if (this.focused)
+			{
+				if(this.text != null)
+					this.EmitEdited(this.text);
+
+				this.EmitEditingFinished(this.text, FinishReason.LostFocus);
+			}
+
 			base.OnLostFocus(e);
 			if (this.cursorTimer != null)
 			{
@@ -221,6 +226,7 @@ namespace AdamsLair.WinForms.EditorTemplates
 		{
 			if (e.KeyCode == Keys.Return)
 			{
+				this.EmitEdited(this.text);
 				this.EmitEditingFinished(this.text, FinishReason.UserAccept);
 				e.Handled = true;
 			}
@@ -231,7 +237,6 @@ namespace AdamsLair.WinForms.EditorTemplates
 					this.text = this.text.Remove(this.cursorIndex, 1);
 					this.UpdateScroll();
 					this.EmitInvalidate();
-					this.EmitEdited(this.text);
 				}
 				else
 					this.DeleteSelection();
@@ -245,7 +250,6 @@ namespace AdamsLair.WinForms.EditorTemplates
 					this.cursorIndex--;
 					this.UpdateScroll();
 					this.EmitInvalidate();
-					this.EmitEdited(this.text);
 				}
 				else
 					this.DeleteSelection();

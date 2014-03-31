@@ -1,19 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Windows.Forms;
-using System.Drawing;
 using System.Reflection;
 
 using IList = System.Collections.IList;
-
-using AdamsLair.WinForms.Renderer;
-using AdamsLair.WinForms.EditorTemplates;
 
 namespace AdamsLair.WinForms.PropertyEditors
 {
 	public class IListPropertyEditor : GroupedPropertyEditor
 	{
+		private const int VisibleElementCountBeforeOffsetRequired = 500;
+
 		public delegate void IndexValueSetter(PropertyInfo indexer, IEnumerable<object> targetObjects, IEnumerable<object> values, int index);
 
 		private	bool					buttonIsCreate	= false;
@@ -143,11 +140,11 @@ namespace AdamsLair.WinForms.PropertyEditors
 			PropertyInfo indexer = typeof(IList).GetProperty("Item");
 			int visibleElementCount = values.Where(o => o != null).Min(o => (int)o.Count);
 			bool showOffset = false;
-			if (visibleElementCount > 10)
+			if (visibleElementCount > VisibleElementCountBeforeOffsetRequired)
 			{
-				this.offset = Math.Min(this.offset, visibleElementCount - 10);
-				this.offsetEditor.Maximum = visibleElementCount - 10;
-				visibleElementCount = 10;
+				this.offset = Math.Min(this.offset, visibleElementCount - VisibleElementCountBeforeOffsetRequired);
+				this.offsetEditor.Maximum = visibleElementCount - VisibleElementCountBeforeOffsetRequired;
+				visibleElementCount = VisibleElementCountBeforeOffsetRequired;
 				showOffset = true;
 			}
 			else
