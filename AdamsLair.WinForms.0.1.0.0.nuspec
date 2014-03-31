@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
+    <metadata>
+        <id>AdamsLair.WinForms</id>
+        <version>0.1.0.0</version>
+        <title>AdamsLair.WinForms</title>
+        <authors>@BatCatGames</authors>
+        <projectUrl>https://github.com/BraveSirAndrew/winforms.git</projectUrl>
+        <requireLicenseAcceptance>false</requireLicenseAcceptance>
+        <description>A collection of custom Controls for Windows.Forms.</description>
+        <language>en-IE</language>
+    </metadata>
+    <files>
+        <file src="WinForms\bin\Release\AdamsLair.WinForms.dll" target="lib\net40\AdamsLair.WinForms.dll" />
+    </files>
+</package>
