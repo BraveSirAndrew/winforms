@@ -7,10 +7,13 @@ using System.Linq;
 using System.Text;
 using System.Windows.Forms;
 
-using AdamsLair.WinForms;
-using AdamsLair.WinForms;
+using AdamsLair.WinForms.ColorControls;
+using AdamsLair.WinForms.PropertyEditing;
+using AdamsLair.WinForms.ItemModels;
+using AdamsLair.WinForms.ItemViews;
+using AdamsLair.WinForms.TimelineControls;
 
-namespace AdamsLair.WinForms
+namespace AdamsLair.WinForms.TestApp
 {
 	public partial class DemoForm : Form
 	{
@@ -150,10 +153,33 @@ namespace AdamsLair.WinForms
 			public int InterfaceInt { get; set; }
 			public string HiddenString { get; set; }
 		}
+		private class TiledModelItem
+		{
+			public string Name { get; set; }
+
+			public override string ToString()
+			{
+				return this.Name;
+			}
+		}
 		#endregion
+
+		private static Bitmap bmpItemSmall	= null;
+		private static Bitmap bmpItemBig	= null;
+		private static Bitmap bmpItemHigh	= null;
+		private static Bitmap bmpItemWide	= null;
+
+		static DemoForm()
+		{
+			bmpItemSmall	= Properties.Resources.ItemSmall;
+			bmpItemBig		= Properties.Resources.ItemBig;
+			bmpItemHigh		= Properties.Resources.ItemHigh;
+			bmpItemWide		= Properties.Resources.ItemWide;
+		}
 
 		private Test objA;
 		private Test objB;
+		private SimpleListModel<TiledModelItem> tiledViewModel;
 
 		public DemoForm()
 		{
@@ -179,6 +205,30 @@ namespace AdamsLair.WinForms
 			this.objB.stringListField = new List<string>() { "hallo", "welt" };
 
 			this.propertyGrid1.SelectObject(this.objA);
+
+			this.tiledViewModel = new SimpleListModel<TiledModelItem>();
+			this.tiledViewModel.Add(new TiledModelItem { Name = "Frederick" });
+			this.tiledViewModel.Add(new TiledModelItem { Name = "Herbert" });
+			this.tiledViewModel.Add(new TiledModelItem { Name = "Mary" });
+			this.tiledViewModel.Add(new TiledModelItem { Name = "John" });
+			this.tiledViewModel.Add(new TiledModelItem { Name = "Sally" });
+			this.tiledView.Model = this.tiledViewModel;
+			this.tiledView.ItemAppearance += this.tiledView_ItemAppearance;
+
+			TimelineViewGraphTrack trackA = new TimelineViewGraphTrack();
+			trackA.BaseHeight = 30;
+			trackA.FillHeight = 20;
+			trackA.Name = "Track A";
+			TimelineViewGraphTrack trackB = new TimelineViewGraphTrack();
+			trackB.BaseHeight = 50;
+			trackB.Name = "Track B";
+			TimelineViewGraphTrack trackC = new TimelineViewGraphTrack();
+			trackC.BaseHeight = 250;
+			trackC.FillHeight = 100;
+			trackC.Name = "This is Track C";
+			this.timelineView1.AddTrack(trackA);
+			this.timelineView1.AddTrack(trackB);
+			this.timelineView1.AddTrack(trackC);
 		}
 
 		private void radioEnabled_CheckedChanged(object sender, EventArgs e)
@@ -226,11 +276,98 @@ namespace AdamsLair.WinForms
 		{
 			this.propertyGrid1.SelectObject(this.objA);
 		}
-
 		private void buttonColorPicker_Click(object sender, EventArgs e)
 		{
 			ColorPickerDialog dialog = new ColorPickerDialog();
 			dialog.ShowDialog();
+		}
+		private void buttonAddTenTileItems_Click(object sender, EventArgs e)
+		{
+			Random rnd = new Random();
+			IEnumerable<TiledModelItem> newItemQuery = Enumerable.Range(0, 100).Select(i => new TiledModelItem { Name = rnd.Next().ToString() });
+			this.tiledViewModel.AddRange(newItemQuery);
+		}
+		private void buttonAddThousandTileItems_Click(object sender, EventArgs e)
+		{
+			Random rnd = new Random();
+			IEnumerable<TiledModelItem> newItemQuery = Enumerable.Range(0, 100000).Select(i => new TiledModelItem { Name = rnd.Next().ToString() });
+			this.tiledViewModel.AddRange(newItemQuery);
+		}
+		private void buttonRemoveTileItem_Click(object sender, EventArgs e)
+		{
+			this.tiledViewModel.RemoveRange(this.tiledView.SelectedModelItems.OfType<TiledModelItem>());
+		}
+		private void buttonClearTileItems_Click(object sender, EventArgs e)
+		{
+			this.tiledViewModel.Clear();
+		}
+		private void radioTiledDisabled_CheckedChanged(object sender, EventArgs e)
+		{
+			this.tiledView.Enabled = this.radioTiledEnabled.Checked;
+		}
+		private void radioTiledEnabled_CheckedChanged(object sender, EventArgs e)
+		{
+			this.tiledView.Enabled = this.radioTiledEnabled.Checked;
+		}
+		private void tiledView_ItemClicked(object sender, TiledViewItemMouseEventArgs e)
+		{
+			Console.WriteLine("ItemClicked {0} at {1} with {2}", e.Item, e.Location, e.Buttons);
+		}
+		private void tiledView_ItemDoubleClicked(object sender, TiledViewItemMouseEventArgs e)
+		{
+			Console.WriteLine("ItemDoubleClicked {0} at {1} with {2}", e.Item, e.Location, e.Buttons);
+		}
+		private void tiledView_ItemDrag(object sender, TiledViewItemMouseEventArgs e)
+		{
+			Console.WriteLine("ItemDrag {0} at {1} with {2}", e.Item, e.Location, e.Buttons);
+			DragDropEffects result = this.tiledView.DoDragDrop(e.Item, DragDropEffects.All);
+			Console.WriteLine("  Result: {0}", result);
+		}
+		private void tiledView_ItemAppearance(object sender, TiledViewItemAppearanceEventArgs e)
+		{
+			e.DisplayedText = e.Item.ToString();
+			switch (e.Item.GetHashCode() % 5)
+			{
+				default:
+				case 0: e.DisplayedImage = bmpItemSmall; break;
+				case 1: e.DisplayedImage = bmpItemBig; break;
+				case 2: e.DisplayedImage = bmpItemHigh; break;
+				case 3: e.DisplayedImage = bmpItemWide; break;
+				case 4: e.DisplayedImage = null; break;
+			}
+		}
+		private void checkBoxTileViewHighlightHover_CheckedChanged(object sender, EventArgs e)
+		{
+			this.tiledView.HightlightHoverItems = this.checkBoxTileViewHighlightHover.Checked;
+		}
+		private void checkBoxTileViewUserSelect_CheckedChanged(object sender, EventArgs e)
+		{
+			this.tiledView.UserSelectMode = this.checkBoxTileViewUserSelect.Checked ? TiledView.SelectMode.Multi : TiledView.SelectMode.None;
+		}
+		private void trackBarTileViewWidth_ValueChanged(object sender, EventArgs e)
+		{
+			this.tiledView.TileSize = new Size(this.trackBarTileViewWidth.Value, this.tiledView.TileSize.Height);
+		}
+		private void trackBarTileViewHeight_ValueChanged(object sender, EventArgs e)
+		{
+			this.tiledView.TileSize = new Size(this.tiledView.TileSize.Width, this.trackBarTileViewHeight.Value);
+		}
+		private void checkBoxTiledViewStyle_CheckedChanged(object sender, EventArgs e)
+		{
+			if (this.checkBoxTiledViewStyle.Checked)
+			{
+				this.tiledView.BackColor = Color.Black;
+				this.tiledView.ForeColor = Color.FromArgb(192, Color.White);
+			}
+			else
+			{
+				this.tiledView.BackColor = SystemColors.Control;
+				this.tiledView.ForeColor = SystemColors.ControlText;
+			}
+		}
+		private void trackBarTimelineUnitZoom_ValueChanged(object sender, EventArgs e)
+		{
+			this.timelineView1.UnitZoom = (float)Math.Pow(2.0f, (float)this.trackBarTimelineUnitZoom.Value / 100.0f);
 		}
 	}
 }

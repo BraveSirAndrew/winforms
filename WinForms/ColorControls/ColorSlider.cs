@@ -4,25 +4,32 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.ComponentModel;
 
-namespace AdamsLair.WinForms
+using AdamsLair.WinForms.Drawing;
+
+namespace AdamsLair.WinForms.ColorControls
 {
-	public class ColorSlider : UserControl
+	public class ColorSlider : Control
 	{
-		private	Bitmap	srcImage	= null;
-		private	int		pickerSize	= 5;
-		private	float	pickerPos	= 0.5f;
-		private	Color	min			= Color.Transparent;
-		private	Color	max			= Color.Transparent;
-		private	Color	valTemp		= Color.Transparent;
-		private	bool	innerPicker	= true;
-		private	Timer	pickerDragTimer	= null;
-		private	bool	designSerializeColor = false;
+		private	ControlRenderer	renderer	= new ControlRenderer();
+		private	Bitmap			srcImage	= null;
+		private	int				pickerSize	= 5;
+		private	float			pickerPos	= 0.5f;
+		private	Color			min			= Color.Transparent;
+		private	Color			max			= Color.Transparent;
+		private	Color			valTemp		= Color.Transparent;
+		private	bool			innerPicker	= true;
+		private	bool			grabbed		= false;
+		private	bool			designSerializeColor = false;
 
 
 		public event EventHandler ValueChanged = null;
 		public event EventHandler PercentualValueChanged = null;
 
-
+		
+		public ControlRenderer Renderer
+		{
+			get { return this.renderer; }
+		}
 		public Rectangle ColorAreaRectangle
 		{
 			get { return new Rectangle(
@@ -94,22 +101,12 @@ namespace AdamsLair.WinForms
 
 		public ColorSlider()
 		{
-			this.pickerDragTimer = new Timer();
-			this.pickerDragTimer.Interval = 10;
-			this.pickerDragTimer.Tick += new EventHandler(pickerDragTimer_Tick);
-
 			this.SetStyle(ControlStyles.UserPaint, true);
 			this.SetStyle(ControlStyles.AllPaintingInWmPaint, true);
-			this.SetStyle(ControlStyles.Selectable, true);
 			this.SetStyle(ControlStyles.OptimizedDoubleBuffer, true);
 			this.SetStyle(ControlStyles.ResizeRedraw, true);
+			this.SetStyle(ControlStyles.SupportsTransparentBackColor, true);
 			this.SetupHueGradient();
-		}
-		protected override void Dispose(bool disposing)
-		{
-			base.Dispose(disposing);
-			if (this.pickerDragTimer != null)
-				this.pickerDragTimer.Dispose();
 		}
 
 		public void SetupGradient(Color min, Color max, int accuracy = 256)
@@ -155,13 +152,13 @@ namespace AdamsLair.WinForms
 		{
 			ColorBlend blend = new ColorBlend();
 			blend.Colors = new Color[] {
-				ExtMethodsSystemDrawingColor.ColorFromHSV(0.0f, saturation, brightness),
-				ExtMethodsSystemDrawingColor.ColorFromHSV(1.0f / 6.0f, saturation, brightness),
-				ExtMethodsSystemDrawingColor.ColorFromHSV(2.0f / 6.0f, saturation, brightness),
-				ExtMethodsSystemDrawingColor.ColorFromHSV(3.0f / 6.0f, saturation, brightness),
-				ExtMethodsSystemDrawingColor.ColorFromHSV(4.0f / 6.0f, saturation, brightness),
-				ExtMethodsSystemDrawingColor.ColorFromHSV(5.0f / 6.0f, saturation, brightness),
-				ExtMethodsSystemDrawingColor.ColorFromHSV(1.0f, saturation, brightness) };
+				ExtMethodsColor.ColorFromHSV(0.0f, saturation, brightness),
+				ExtMethodsColor.ColorFromHSV(1.0f / 6.0f, saturation, brightness),
+				ExtMethodsColor.ColorFromHSV(2.0f / 6.0f, saturation, brightness),
+				ExtMethodsColor.ColorFromHSV(3.0f / 6.0f, saturation, brightness),
+				ExtMethodsColor.ColorFromHSV(4.0f / 6.0f, saturation, brightness),
+				ExtMethodsColor.ColorFromHSV(5.0f / 6.0f, saturation, brightness),
+				ExtMethodsColor.ColorFromHSV(1.0f, saturation, brightness) };
 			blend.Positions = new float[] {
 				0.0f,
 				1.0f / 6.0f,
@@ -196,43 +193,43 @@ namespace AdamsLair.WinForms
 			base.OnEnabledChanged(e);
 			this.Invalidate();
 		}
+		protected override void OnParentBackColorChanged(EventArgs e)
+		{
+			base.OnParentBackColorChanged(e);
+			this.Invalidate();
+		}
 		protected override void OnPaint(PaintEventArgs e)
 		{
 			base.OnPaint(e);
 
-			Rectangle colorBoxOuter = new Rectangle(
+			Rectangle colorBox = new Rectangle(
 				this.ClientRectangle.X + this.pickerSize,
 				this.ClientRectangle.Y + this.pickerSize,
-				this.ClientRectangle.Width - this.pickerSize * 2 - 1,
-				this.ClientRectangle.Height - this.pickerSize * 2 - 1);
-			Rectangle colorBoxInner = new Rectangle(
-				colorBoxOuter.X + 1,
-				colorBoxOuter.Y + 1,
-				colorBoxOuter.Width - 2,
-				colorBoxOuter.Height - 2);
+				this.ClientRectangle.Width - this.pickerSize * 2,
+				this.ClientRectangle.Height - this.pickerSize * 2);
 			Rectangle colorArea = this.ColorAreaRectangle;
 			int pickerVisualPos = colorArea.Y + (int)Math.Round((1.0f - this.pickerPos) * colorArea.Height);
 
 			if (this.min.A < 255 || this.max.A < 255)
-				e.Graphics.FillRectangle(new HatchBrush(HatchStyle.LargeCheckerBoard, Color.LightGray, Color.Gray), colorArea);
+				e.Graphics.FillRectangle(new HatchBrush(HatchStyle.LargeCheckerBoard, this.renderer.ColorLightBackground, this.renderer.ColorDarkBackground), colorArea);
 
 			System.Drawing.Imaging.ImageAttributes colorAreaImageAttr = new System.Drawing.Imaging.ImageAttributes();
 			colorAreaImageAttr.SetWrapMode(WrapMode.TileFlipXY);
 			e.Graphics.DrawImage(this.srcImage, colorArea, 0, 0, this.srcImage.Width, this.srcImage.Height - 1, GraphicsUnit.Pixel, colorAreaImageAttr);
 
-			e.Graphics.DrawRectangle(SystemPens.ControlDark, colorBoxOuter);
-			e.Graphics.DrawRectangle(SystemPens.ControlLightLight, colorBoxInner);
+			this.renderer.DrawBorder(e.Graphics, colorBox, Drawing.BorderStyle.ContentBox, BorderState.Normal);
 
-			e.Graphics.DrawLines(this.Enabled ? Pens.Black : SystemPens.ControlDark, new Point[] {
+			Pen outerPickerPen = this.Enabled ? Pens.Black : new Pen(Color.FromArgb(128, Color.Black));
+			e.Graphics.DrawLines(outerPickerPen, new Point[] {
 				new Point(0, pickerVisualPos - this.pickerSize),
 				new Point(this.pickerSize, pickerVisualPos),
 				new Point(0, pickerVisualPos + this.pickerSize),
 				new Point(0, pickerVisualPos - this.pickerSize)});
-			e.Graphics.DrawLines(this.Enabled ? Pens.Black : SystemPens.ControlDark, new Point[] {
-				new Point(colorBoxOuter.Right + this.pickerSize, pickerVisualPos - this.pickerSize),
-				new Point(colorBoxOuter.Right, pickerVisualPos),
-				new Point(colorBoxOuter.Right + this.pickerSize, pickerVisualPos + this.pickerSize),
-				new Point(colorBoxOuter.Right + this.pickerSize, pickerVisualPos - this.pickerSize)});
+			e.Graphics.DrawLines(outerPickerPen, new Point[] {
+				new Point(colorBox.Right - 1 + this.pickerSize, pickerVisualPos - this.pickerSize),
+				new Point(colorBox.Right - 1, pickerVisualPos),
+				new Point(colorBox.Right - 1 + this.pickerSize, pickerVisualPos + this.pickerSize),
+				new Point(colorBox.Right - 1 + this.pickerSize, pickerVisualPos - this.pickerSize)});
 			
 			if (this.innerPicker)
 			{
@@ -247,7 +244,7 @@ namespace AdamsLair.WinForms
 
 			if (!this.Enabled)
 			{
-				e.Graphics.FillRectangle(new SolidBrush(Color.FromArgb(128, SystemColors.Control)), colorArea);
+				e.Graphics.FillRectangle(new SolidBrush(Color.FromArgb(128, this.renderer.ColorBackground)), colorArea);
 			}
 		}
 		protected override void OnMouseDown(MouseEventArgs e)
@@ -255,31 +252,22 @@ namespace AdamsLair.WinForms
 			base.OnMouseDown(e);
 			if (e.Button == System.Windows.Forms.MouseButtons.Left)
 			{
-				this.Focus();
 				this.ValuePercentual = 1.0f - (float)(e.Y - this.ColorAreaRectangle.Y) / (float)this.ColorAreaRectangle.Height;
-				this.pickerDragTimer.Enabled = true;
+				this.grabbed = true;
 			}
 		}
 		protected override void OnMouseUp(MouseEventArgs e)
 		{
 			base.OnMouseUp(e);
-			this.pickerDragTimer.Enabled = false;
+			this.grabbed = false;
 		}
-		
-		private void pickerDragTimer_Tick(object sender, EventArgs e)
+		protected override void OnMouseMove(MouseEventArgs e)
 		{
-			Point pos = this.PointToClient(System.Windows.Forms.Cursor.Position);
-			this.ValuePercentual = 1.0f - (float)(pos.Y - this.ColorAreaRectangle.Y) / (float)this.ColorAreaRectangle.Height;
-		}
-		protected override void OnLostFocus(EventArgs e)
-		{
-			base.OnLostFocus(e);
-			this.Invalidate();
-		}
-		protected override void OnGotFocus(EventArgs e)
-		{
-			base.OnGotFocus(e);
-			this.Invalidate();
+			base.OnMouseMove(e);
+			if (this.grabbed)
+			{
+				this.ValuePercentual = 1.0f - (float)(e.Y - this.ColorAreaRectangle.Y) / (float)this.ColorAreaRectangle.Height;
+			}
 		}
 
 		private void ResetMinimum()
