@@ -12,5 +12,6 @@
     </metadata>
     <files>
         <file src="WinForms\bin\Release\AdamsLair.WinForms.dll" target="lib\net40\AdamsLair.WinForms.dll" />
+        <file src="WinForms\bin\Release\PopupControl.dll" target="lib\net40\PopupControl.dll" />
     </files>
 </package>
