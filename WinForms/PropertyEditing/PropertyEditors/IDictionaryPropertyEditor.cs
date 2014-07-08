@@ -179,12 +179,12 @@ namespace AdamsLair.WinForms.PropertyEditing.Editors
 			this.displayedKeys = new object[visibleElementCount];
 			foreach (object key in values.Where(o => o != null).First().Keys)
 			{
+				if (elemIndex >= this.offset + visibleElementCount) break;
 				if (elemIndex >= this.offset)
 				{
 					this.displayedKeys[elemIndex - this.offset] = key;
 				}
 				elemIndex++;
-				if (elemIndex >= this.offset + visibleElementCount) break;
 			}
 
 			this.BeginUpdate();
@@ -317,11 +317,24 @@ namespace AdamsLair.WinForms.PropertyEditing.Editors
 
 			if (this.buttonIsCreate)
 			{
-				IDictionary newIList = null;
-				newIList = (IDictionary)this.EditedType.CreateInstanceOf();
+				bool anyCreated = false;
 
-				this.SetValue(newIList);
-				this.Expanded = true;
+				int objectsToCreate = this.GetValue().Count();
+				IDictionary[] createdObjects = new IDictionary[objectsToCreate];
+				for (int i = 0; i < createdObjects.Length; i++)
+				{
+					createdObjects[i] = this.ParentGrid.CreateObjectInstance(this.EditedType) as IDictionary;
+					if (createdObjects[i] != null)
+					{
+						anyCreated = true;
+					}
+				}
+
+				if (anyCreated)
+				{
+					this.SetValues(createdObjects);
+					this.Expanded = true;
+				}
 			}
 			else
 			{

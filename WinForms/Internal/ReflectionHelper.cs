@@ -5,7 +5,7 @@ using System.Text;
 
 namespace AdamsLair.WinForms
 {
-	internal static class ExtMethodsType
+	internal static class ReflectionHelper
 	{
 		public static object CreateInstanceOf(this Type instanceType, bool noConstructor = false)
 		{
@@ -24,6 +24,18 @@ namespace AdamsLair.WinForms
 			{
 				return null;
 			}
+		}
+		/// <summary>
+		/// Returns the default instance of a Type. Equals <c>default(T)</c>, but works for Reflection.
+		/// </summary>
+		/// <param name="instanceType">The Type to create a default instance of.</param>
+		/// <returns></returns>
+		public static object GetDefaultInstanceOf(this Type instanceType)
+		{
+			if (instanceType.IsValueType)
+				return Activator.CreateInstance(instanceType, true);
+			else
+				return null;
 		}
 		public static bool IsDerivedFrom(this Type type, Type baseType)
 		{
@@ -128,6 +140,15 @@ namespace AdamsLair.WinForms
 			}
 
 			return typeStr.Replace('+', '.').ToString();
+		}
+
+		public static Type[] FindConcreteTypes(Type abstractType)
+		{
+			return AppDomain.CurrentDomain.GetAssemblies().
+				Where(a => !a.IsDynamic).
+				SelectMany(a => a.GetExportedTypes()).
+				Where(t => !t.IsAbstract && !t.IsInterface && abstractType.IsAssignableFrom(t)).
+				ToArray();
 		}
 	}
 }

@@ -105,6 +105,8 @@ namespace AdamsLair.WinForms.TestApp
 			public List<Test2> StructList { get; set; }
 			public Dictionary<string,int> SomeDict { get; set; }
 			public Dictionary<string,List<int>> SomeDict2 { get; set; }
+			public Dictionary<EnumTest,int> SomeDict3 { get; set; }
+			public Dictionary<FlaggedEnumTest,int> SomeDict4 { get; set; }
 			public TimeSpan ElapsedTime
 			{
 				get { return this.w.Elapsed; }
@@ -179,7 +181,8 @@ namespace AdamsLair.WinForms.TestApp
 
 		private Test objA;
 		private Test objB;
-		private SimpleListModel<TiledModelItem> tiledViewModel;
+		private ListModel<TiledModelItem> tiledViewModel;
+		private	TimelineModel timelineViewModel;
 
 		public DemoForm()
 		{
@@ -206,7 +209,7 @@ namespace AdamsLair.WinForms.TestApp
 
 			this.propertyGrid1.SelectObject(this.objA);
 
-			this.tiledViewModel = new SimpleListModel<TiledModelItem>();
+			this.tiledViewModel = new ListModel<TiledModelItem>();
 			this.tiledViewModel.Add(new TiledModelItem { Name = "Frederick" });
 			this.tiledViewModel.Add(new TiledModelItem { Name = "Herbert" });
 			this.tiledViewModel.Add(new TiledModelItem { Name = "Mary" });
@@ -215,20 +218,101 @@ namespace AdamsLair.WinForms.TestApp
 			this.tiledView.Model = this.tiledViewModel;
 			this.tiledView.ItemAppearance += this.tiledView_ItemAppearance;
 
-			TimelineViewGraphTrack trackA = new TimelineViewGraphTrack();
-			trackA.BaseHeight = 30;
-			trackA.FillHeight = 20;
-			trackA.Name = "Track A";
-			TimelineViewGraphTrack trackB = new TimelineViewGraphTrack();
-			trackB.BaseHeight = 50;
-			trackB.Name = "Track B";
-			TimelineViewGraphTrack trackC = new TimelineViewGraphTrack();
-			trackC.BaseHeight = 250;
-			trackC.FillHeight = 100;
-			trackC.Name = "This is Track C";
-			this.timelineView1.AddTrack(trackA);
-			this.timelineView1.AddTrack(trackB);
-			this.timelineView1.AddTrack(trackC);
+			this.timelineViewModel = new TimelineModel();
+			this.timelineView1.Model = this.timelineViewModel;
+			{
+				TimelineGraphTrackModel graphTrack = new TimelineGraphTrackModel { TrackName = "Track A" };
+				graphTrack.Add(new TimelineLinearGraphModel(new TimelineLinearGraphModel.Key[]
+				{
+					new TimelineLinearGraphModel.Key(0.0f, 1.0f),
+					new TimelineLinearGraphModel.Key(10.0f, 0.75f),
+					new TimelineLinearGraphModel.Key(15.0f, 0.5f),
+					new TimelineLinearGraphModel.Key(20.0f, 0.0f),
+					new TimelineLinearGraphModel.Key(25.0f, -0.5f),
+					new TimelineLinearGraphModel.Key(30.0f, -0.75f),
+					new TimelineLinearGraphModel.Key(40.0f, -1.0f),
+					new TimelineLinearGraphModel.Key(50.0f, 5.0f)
+				}));
+				this.timelineViewModel.Add(graphTrack);
+			}
+			{
+				Func<float,float> func = x => (float)Math.Sin(0.005f * x * x);
+
+				TimelineGraphTrackModel graphTrack = new TimelineGraphTrackModel { TrackName = "Track B" };
+				graphTrack.Add(new TimelineFunctionGraphModel(
+					x => func(x), 
+					delegate (float a, float b) 
+					{
+						float result = Math.Min(func(a), func(b));
+						int intervalIndexA = 1 + (int)((0.005f * a * a / (float)Math.PI) - 0.5f);
+						int intervalIndexB = (int)((0.005f * b * b / (float)Math.PI) - 0.5f);
+						for (int i = intervalIndexA; i <= intervalIndexB; i++)
+						{
+							float x = (float)Math.Sqrt((i + 0.5d) * Math.PI / 0.005d);
+							result = Math.Min(result, func(x));
+							if (result <= -1.0f) break;
+						}
+						return result; 
+					},
+					delegate (float a, float b)
+					{
+						float result = Math.Max(func(a), func(b));
+						int intervalIndexA = 1 + (int)((0.005f * a * a / (float)Math.PI) - 0.5f);
+						int intervalIndexB = (int)((0.005f * b * b / (float)Math.PI) - 0.5f);
+						for (int i = intervalIndexA; i <= intervalIndexB; i++)
+						{
+							float x = (float)Math.Sqrt((i + 0.5d) * Math.PI / 0.005d);
+							result = Math.Max(result, func(x));
+							if (result >= 1.0f) break;
+						}
+						return result; 
+					},
+					0.0f, 
+					500.0f));
+				this.timelineViewModel.Add(graphTrack);
+			}
+			{
+				Func<float,float> func = x => (float)Math.Sin(0.005f * x * x) * (float)(0.5f + 0.5f * Math.Sin(0.1f * x));
+
+				TimelineGraphTrackModel graphTrack = new TimelineGraphTrackModel { TrackName = "Track C" };
+				graphTrack.Add(new TimelineFunctionGraphModel(
+					x => func(x), 
+					delegate (float a, float b) 
+					{
+						float result = Math.Min(func(a), func(b));
+						int intervalIndexA = 1 + (int)((0.005f * a * a / (float)Math.PI) - 0.5f);
+						int intervalIndexB = (int)((0.005f * b * b / (float)Math.PI) - 0.5f);
+						for (int i = intervalIndexA; i <= intervalIndexB; i++)
+						{
+							float x = (float)Math.Sqrt((i + 0.5d) * Math.PI / 0.005d);
+							result = Math.Min(result, func(x));
+							if (result <= -1.0f) break;
+						}
+						return result; 
+					},
+					delegate (float a, float b)
+					{
+						float result = Math.Max(func(a), func(b));
+						int intervalIndexA = 1 + (int)((0.005f * a * a / (float)Math.PI) - 0.5f);
+						int intervalIndexB = (int)((0.005f * b * b / (float)Math.PI) - 0.5f);
+						for (int i = intervalIndexA; i <= intervalIndexB; i++)
+						{
+							float x = (float)Math.Sqrt((i + 0.5d) * Math.PI / 0.005d);
+							result = Math.Max(result, func(x));
+							if (result >= 1.0f) break;
+						}
+						return result; 
+					},
+					0.0f, 
+					1500.0f));
+				this.timelineViewModel.Add(graphTrack);
+			}
+			{
+				TimelineGraphTrackModel graphTrack = new TimelineGraphTrackModel { TrackName = "Track D" };
+				graphTrack.Add(new TimelineLinearGraphModel(Enumerable.Range(0, 360).Select(i => 0.5f + (float)Math.Sin((float)i * Math.PI / 180.0f)), 1.0f, 0.0f));
+				graphTrack.Add(new TimelineLinearGraphModel(Enumerable.Range(0, 360).Select(i => (float)Math.Sin((float)i * Math.PI / 180.0f)), 1.0f, 50.0f));
+				this.timelineViewModel.Add(graphTrack);
+			}
 		}
 
 		private void radioEnabled_CheckedChanged(object sender, EventArgs e)
