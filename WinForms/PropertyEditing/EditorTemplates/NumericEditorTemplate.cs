@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Windows.Forms;
 using System.Drawing;
@@ -14,28 +15,30 @@ namespace AdamsLair.WinForms.PropertyEditing.Templates
 	public class NumericEditorTemplate : EditorTemplate
 	{
 		public const int GripSize = 11;
+		private const float GripDragMovementScale = 1.3f;
 
 		private static IconImage gripIcon = new IconImage(ResourcesCache.NumberGripIcon);
 
-		private	bool					isTextValid		= false;
-		private	bool					isValueClamped	= false;
-		private	decimal					value			= decimal.MinValue;
+		private	bool					isTextValid				= false;
+		private	bool					isValueClamped			= false;
+		private	decimal					value					= decimal.MinValue;
 		private	decimal					limitMin;
 		private	decimal					limitMax;
-		private	decimal					barMin			= decimal.MinValue;
-		private	decimal					barMax			= decimal.MaxValue;
+		private	decimal					barMin					= decimal.MinValue;
+		private	decimal					barMax					= decimal.MaxValue;
 		private	decimal					increment;
 		private	int						decimalPlaces;
-		private	StringEditorTemplate	stringEditor	= null;
-		private	Rectangle				gripRect		= Rectangle.Empty;
-		private	Rectangle				minMaxRect		= Rectangle.Empty;
-		private	bool					showMinMax		= false;
-		private	bool					barHovered		= false;
-		private	bool					barPressed		= false;
-		private	bool					gripHovered		= false;
-		private	bool					gripPressed		= false;
-		private	Point					gripDragPos		= Point.Empty;
-		private	decimal					gripDragVal		= 0m;
+		private	StringEditorTemplate	stringEditor			= null;
+		private	Rectangle				gripRect				= Rectangle.Empty;
+		private	Rectangle				minMaxRect				= Rectangle.Empty;
+		private	bool					showMinMax				= false;
+		private	bool					barHovered				= false;
+		private	bool					barPressed				= false;
+		private	bool					gripHovered				= false;
+		private	bool					gripPressed				= false;
+		private	Point					gripDragPos				= Point.Empty;
+		private	decimal					gripDragVal				= 0m;
+		private Point					previousMouseLocation	= Point.Empty;
 
 		public override Rectangle Rect
 		{
@@ -267,7 +270,9 @@ namespace AdamsLair.WinForms.PropertyEditing.Templates
 			{
 				this.gripPressed = true;
 				this.gripDragPos = e.Location;
+				this.previousMouseLocation = this.gripDragPos;
 				this.gripDragVal = this.value;
+				Cursor.Current = Cursors.SizeNS;
 				this.stringEditor.Select();
 				this.stringEditor.UpdateScroll();
 				this.EmitInvalidate();
@@ -292,6 +297,7 @@ namespace AdamsLair.WinForms.PropertyEditing.Templates
 				this.gripPressed = false;
 				this.gripDragPos = Point.Empty;
 				this.gripDragVal = 0m;
+				Cursor.Current = Cursors.Arrow;
 				this.EmitInvalidate();
 				this.EmitEditingFinished(this.value, FinishReason.LeapValue);
 			}
@@ -302,6 +308,7 @@ namespace AdamsLair.WinForms.PropertyEditing.Templates
 				this.EmitEditingFinished(this.value, FinishReason.LeapValue);
 			}
 		}
+
 		public override void OnMouseMove(MouseEventArgs e)
 		{
 			base.OnMouseMove(e);
@@ -318,7 +325,21 @@ namespace AdamsLair.WinForms.PropertyEditing.Templates
 			if (this.gripPressed)
 			{
 				decimal lastVal = this.value;
-				this.Value = this.gripDragVal - this.increment * Math.Round((e.Location.Y - this.gripDragPos.Y) / 3m);
+				int dragDistance = e.Location.Y - this.previousMouseLocation.Y;
+				float scale = (float) Math.Pow(Math.Abs(dragDistance), GripDragMovementScale);
+				this.Value += this.increment * Math.Sign(dragDistance) * (decimal) scale;
+				this.previousMouseLocation = e.Location;
+
+				var screen = Screen.FromPoint(Cursor.Position);
+				if (Cursor.Position.Y == 0)
+				{
+					WrapCursorVertically(screen.Bounds.Height - 2);
+				}
+				else if (Cursor.Position.Y == screen.Bounds.Height - 1)
+				{
+					WrapCursorVertically(1);
+				}
+				
 				if (lastVal != this.value) this.EmitEdited(this.value);
 			}
 			else if (this.barPressed)
@@ -405,6 +426,15 @@ namespace AdamsLair.WinForms.PropertyEditing.Templates
 			{
 				this.isValueClamped = false;
 			}
+		}
+
+		private void WrapCursorVertically(int cursorY)
+		{
+			Point editorLocation = this.parent.ParentGrid.GetEditorLocation(this.parent);
+
+			Cursor.Position = new Point(Cursor.Position.X, cursorY);
+			this.previousMouseLocation = this.Parent.ParentGrid.PointToClient(Cursor.Position);
+			this.previousMouseLocation.Y -= editorLocation.Y + this.Parent.ParentGrid.AutoScrollPosition.Y;
 		}
 		
 		private void ForwardInvalidate(object sender, EventArgs e)
